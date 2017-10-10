@@ -1,0 +1,83 @@
+function esn_test(esn, test_x, test_y, options)
+
+input_dimension = size(esn.input_weights, 2);
+reservoir_dimension = size(esn.reservoir_weights, 1);
+output_dimension = size(esn.output_weights, 1);
+total_dimension = input_dimension + reservoir_dimension + output_dimension;
+
+initial_run_length = options.initial_run_length;
+
+
+sampleout = testseq';
+
+% initial_run_length = 2000;
+
+total_state =  zeros(totalDim,1);    
+reservoir_state = total_state(1:reservoir_dimension);
+teacherList = zeros( plotRunlength,1);
+netOutList = zeros(plotRunlength,1);
+plotindex = 0;
+
+for i = 1:initial_run_length   
+    input = test_x(:, i);
+    target_output = test_y(:, i);   
+    total_state(reservoir_dimension+1:reservoir_dimension+input_dimension) = input; 
+    reservoir_state = f([esn.reservoir_weights, esn.input_weights, ofbWM]*total_state); 
+    netOut = f(outWM *[reservoir_state;input]);
+    total_state = [reservoir_state;input;netOut];      
+    total_state(reservoir_dimension+input_dimension+1:reservoir_dimension+input_dimension+outputLength) = target_output' ; 
+end
+startstate = total_state;
+% end of initial priming
+
+testRunlength = 84;
+numberOfTrials = 50;
+outputCollectMat = zeros(testRunlength, numberOfTrials);
+teacherCollectMat = zeros(testRunlength, numberOfTrials);
+trialshift = 84;
+for trials = 1:numberOfTrials
+    % continue forced simulation run for trialshift steps
+    total_state = startstate;
+    for i = 1:trialshift   
+        input = 0.02;     
+        target_output = [teacherscaling * ...
+                sampleout(1,initial_run_length + i + (trials - 1)*trialshift) + teachershift];         
+        %write input into total_state
+        total_state(reservoir_dimension+1:reservoir_dimension+input_dimension) = input; 
+        %update total_state except at input positions  
+        reservoir_state = f([esn.reservoir_weights, esn.input_weights, ofbWM]*total_state); 
+        netOut = f(outWM *[reservoir_state;input]);
+        total_state = [reservoir_state;input;netOut];      
+        total_state(reservoir_dimension+input_dimension+1:reservoir_dimension+input_dimension+outputLength) = target_output' ; 
+    end
+    startstate = total_state;
+    
+    for i = 1:testRunlength         
+        input = 0.02;     
+        target_output = [teacherscaling * ...
+                sampleout(1,initial_run_length + i + (trials - 1)*trialshift + trialshift) ...
+                + teachershift];         
+        %write input into total_state
+        total_state(reservoir_dimension+1:reservoir_dimension+input_dimension) = input; 
+        %update total_state except at input positions  
+        reservoir_state = f([esn.reservoir_weights, esn.input_weights, ofbWM]*total_state); 
+        netOut = f(outWM *[reservoir_state;input]);
+        total_state = [reservoir_state;input;netOut];      
+        outputCollectMat(i, trials) = netOut;
+        teacherCollectMat(i, trials) = target_output;
+    end
+end
+
+% compute the normalized root MSE for 84 step prediction
+
+% compute variance of original MG series
+teachVar = var(fInverse(sampleout));
+% undo the tanh transformation of the training data to recover (shifted)
+% original MG data
+outputCollectMatMG = fInverse(outputCollectMat);
+teacherCollectMatMG = fInverse(teacherCollectMat);
+% compute average NMSE of 84 step predictions
+errors84 = outputCollectMatMG(84,:) - teacherCollectMatMG(84,:);
+NRMSE84 = sqrt(mean(errors84.^2)/teachVar) % result 3.0999e-005
+
+end

@@ -1,0 +1,19 @@
+function esn = esn_setup(params)
+
+reservoir_dimension = params.reservoir_dimension;
+input_dimension = params.input_dimension;
+output_dimension = params.output_dimension;
+
+connectivity = params.connectivity;
+spectral_radius = params.spectral_radius;
+output_feedback_scale = params.output_feedback_scale;
+
+reservoir_weights = sprand(reservoir_dimension, reservoir_dimension, connectivity);
+reservoir_weights = reservoir_weights - 0.5;
+reservoir_weights = reservoir_weights * spectral_radius;
+
+input_weights = 2.0 * rand(reservoir_dimension, input_dimension) - 1.0;
+
+output_weights = zeros(output_dimension, input_dimension + )
+
+end
